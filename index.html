@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PvP Dice Arena</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #0f172a; color: #fff; text-align: center; padding: 20px; }
+        .card { background: #1e293b; padding: 20px; border-radius: 12px; margin: 15px auto; max-width: 400px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        input, button { width: 90%; padding: 12px; margin: 8px 0; border-radius: 8px; border: none; font-size: 16px; }
+        button { background: #10b981; color: white; font-weight: bold; cursor: pointer; }
+        button:hover { background: #059669; }
+        .game-item { background: #334155; padding: 10px; margin: 10px 0; border-radius: 6px; text-align: left; }
+    </style>
+</head>
+<body>
+
+    <h1>🎲 PvP Crypto Dice Arena</h1>
+    <p>5% Platform Fee Auto-Deducted On Every Match</p>
+
+    <div class="card">
+        <h3>Create a PvP Match</h3>
+        <input type="text" id="p1Id" placeholder="Your Player ID (e.g. Alice)">
+        <input type="number" id="wager" placeholder="Wager Amount ($)">
+        <button onclick="createGame()">Create Match</button>
+    </div>
+
+    <div class="card">
+        <h3>Active Match Lobby</h3>
+        <button onclick="loadLobby()" style="background: #3b82f6;">Refresh Lobby</button>
+        <div id="lobby">Loading matches...</div>
+    </div>
+
+    <script>
+        // YOUR LIVE RENDER BACKEND URL
+        const API_URL = 'https://web3-dice-backend.onrender.com';
+
+        async function createGame() {
+            const player1Id = document.getElementById('p1Id').value;
+            const wagerAmount = parseFloat(document.getElementById('wager').value);
+
+            if (!player1Id || !wagerAmount) return alert('Enter Player ID and Wager!');
+
+            const res = await fetch(`${API_URL}/api/create-pvp-game`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ player1Id, wagerAmount, player1Seed: Math.random().toString() })
+            });
+            const data = await res.json();
+            alert(`Match Created! Game ID: ${data.gameId}`);
+            loadLobby();
+        }
+
+        async function loadLobby() {
+            const res = await fetch(`${API_URL}/api/lobby`);
+            const games = await res.json();
+            const lobbyDiv = document.getElementById('lobby');
+            lobbyDiv.innerHTML = '';
+
+            if (games.length === 0) {
+                lobbyDiv.innerHTML = '<p>No active games. Create one!</p>';
+                return;
+            }
+
+            games.forEach(game => {
+                lobbyDiv.innerHTML += `
+                    <div class="game-item">
+                        <p><strong>Host:</strong> ${game.player1Id}</p>
+                        <p><strong>Pot:</strong> $${game.wagerAmount * 2} ($${game.wagerAmount} each)</p>
+                        <button onclick="joinGame('${game.gameId}')">Join & Challenge</button>
+                    </div>
+                `;
+            });
+        }
+
+        async function joinGame(gameId) {
+            const player2Id = prompt('Enter Your Player ID to Join:');
+            if (!player2Id) return;
+
+            const res = await fetch(`${API_URL}/api/join-pvp-game`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ gameId, player2Id, player2Seed: Math.random().toString() })
+            });
+            const data = await res.json();
+            
+            alert(`🎉 WINNER: ${data.winnerId}!\n\nTotal Pot: $${data.totalPot}\nWinner Took: $${data.winnerPayout}\nHouse Rake (5%): $${data.platformFeeCollected}`);
+            loadLobby();
+        }
+
+        loadLobby();
+    </script>
+</body>
+</html>
